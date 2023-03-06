@@ -1,10 +1,11 @@
 CC=clang
 CFLAGS= -g
+COMMON_OBJS = common.o
 
-all: tcpc
+all: $(COMMON_OBJS) tcpc
 
-tcpc: tcpclient.c
-	$(CC) $(CFLAGS) -o tcpc tcpclient.c
+tcpc: tcpclient.c $(COMMON_OBJS)
+	$(CC) $(CFLAGS) -o tcpc tcpclient.c $(COMMON_OBJS)
 
 clean:
-	rm -rf *.dSYM tcpc
+	rm -rf *.o *.dSYM tcpc
