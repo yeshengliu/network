@@ -32,13 +32,17 @@ int main(int argc, char *argv[]) {
   while (1) {
     struct sockaddr_in addr;
     socklen_t addr_len;
+    char client_ip[MAXLINE + 1];
 
     // accept blocks until an incoming connection arrives
     // it returns a "file descriptor" for the new connection
     printf("waiting for connection on port %d...\n", SERVER_PORT);
     fflush(stdout);
-    connfd = accept(listenfd, (SA *) NULL, NULL);
+    connfd = accept(listenfd, (SA *) &addr, &addr_len);
 
+    inet_ntop(AF_INET, &addr, client_ip, MAXLINE);
+    printf("accepted connection from %s\n", client_ip);
+    
     // zero out the receive buffer to make sure it ends up null terminated
     memset(recvline, 0, MAXLINE);
 
