@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <pthread.h>
 
 #define SERVERPORT 8989
 #define BUFSIZE 4096
@@ -15,7 +16,7 @@
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
-void handle_connection(int client_socket);
+void* handle_connection(void* client_socket);
 int check(int exp, const char *msg);
 
 int main(int argc, char *argv[]) {
@@ -49,8 +50,14 @@ int main(int argc, char *argv[]) {
       accept(server_socket, (SA *)&client_addr, (socklen_t*)&addr_size),
       "Failed to accept connection");
     
-    // handle connection
-    handle_connection(client_socket);
+    // handle connection using threads
+    pthread_t thread; // keep track of thread
+    int *pclient = malloc(sizeof(int));
+    *pclient = client_socket;
+    pthread_create(&thread, NULL, handle_connection, (void*)pclient);
+
+    // testing no threads
+    // handle_connection(pclient);
   
   } // while
 
@@ -65,7 +72,9 @@ int check(int exp, const char *msg) {
   return exp;
 }
 
-void handle_connection(int client_socket) {
+void* handle_connection(void* p_client_socket) {
+  int client_socket = *((int*)p_client_socket);
+  free(p_client_socket);
   char buffer[BUFSIZE];
   size_t bytes_read;
   int msg_size = 0;
@@ -86,7 +95,7 @@ void handle_connection(int client_socket) {
   if (realpath(buffer, actual_path) == NULL) {
     printf("Invalid path: %s\n", buffer);
     close(client_socket);
-    return;
+    return NULL;
   }
 
   // read file and send its content back to client
@@ -94,8 +103,10 @@ void handle_connection(int client_socket) {
   if (file == NULL) {
     printf("Failed to open file: %s\n", actual_path);
     close(client_socket);
-    return;
+    return NULL;
   }
+
+  sleep(1); // for performance testing
 
   while ((bytes_read = fread(buffer, 1, BUFSIZE, file)) > 0) {
     printf("Sending %zu bytes...\n", bytes_read);
@@ -105,4 +116,5 @@ void handle_connection(int client_socket) {
   fclose(file);
   close(client_socket);
   printf("Closing connection\n");
+  return NULL;
 }
