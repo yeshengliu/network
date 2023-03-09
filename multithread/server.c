@@ -17,6 +17,7 @@
 
 pthread_t thread_pool[THREAD_POOL_SIZE];
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t condition_var = PTHREAD_COND_INITIALIZER;
 
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
@@ -67,6 +68,7 @@ int main(int argc, char *argv[]) {
     *pclient = client_socket;
     pthread_mutex_lock(&mutex);
     enqueue(pclient);
+    pthread_cond_signal(&condition_var); // wake up a thread
     pthread_mutex_unlock(&mutex);
 
     /* previous versions
@@ -97,9 +99,14 @@ int check(int exp, const char *msg) {
 
 void* thread_pool_handler(void* arg) {
   while (true) {
+    int* pclient;
     pthread_mutex_lock(&mutex);
-    int* pclient = dequeue();
+    if ((pclient = dequeue()) == NULL) {  // queue is empty
+      pthread_cond_wait(&condition_var, &mutex); // unlock and wait
+      pclient = dequeue();
+    }
     pthread_mutex_unlock(&mutex);
+
     if (pclient != NULL) {
       // handle connection
       handle_connection(pclient);

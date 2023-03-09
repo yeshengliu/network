@@ -33,3 +33,10 @@ Commmon Issues:
   * Reason: the shared data structure "queue" is not thread-safe
   * Solution: use mutex thread lock to protect enqueue() and dequeue()
 
+### Step 3 - Add condition variables
+Apply condition variables to ask threads wait/wake to save system resources
+
+Common Issues:
+* Server get stuck if dealing with a large number of connections
+  * Reason: the thread sleeps once wait() is called, regardless of how many times signal() was called before, therefore, the incoming connections being stacked up in the queue
+  * Solution: ask the thread only wait when there is no connections remaining in queue
