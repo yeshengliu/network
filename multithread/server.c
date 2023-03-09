@@ -7,21 +7,32 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <pthread.h>
+#include "queue.h"
 
 #define SERVERPORT 8989
 #define BUFSIZE 4096
 #define SOCKETERROR (-1)
 #define SERVER_BACKLOG 100  // allow 100 pending connections
+#define THREAD_POOL_SIZE 20
+
+pthread_t thread_pool[THREAD_POOL_SIZE];
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct sockaddr_in SA_IN;
 typedef struct sockaddr SA;
 
 void* handle_connection(void* client_socket);
+void* thread_pool_handler(void* arg);
 int check(int exp, const char *msg);
 
 int main(int argc, char *argv[]) {
   int server_socket, client_socket, addr_size;
   SA_IN server_addr, client_addr;
+
+  // create thread pool to handle future connections
+  for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+    pthread_create(&thread_pool[i], NULL, thread_pool_handler, NULL);
+  }
 
   // create socket
   check(server_socket = socket(AF_INET, SOCK_STREAM, 0),
@@ -50,14 +61,26 @@ int main(int argc, char *argv[]) {
       accept(server_socket, (SA *)&client_addr, (socklen_t*)&addr_size),
       "Failed to accept connection");
     
+    // handle connection
+    // put the connection into a queue
+    int* pclient = (int*) malloc(sizeof(int));
+    *pclient = client_socket;
+    pthread_mutex_lock(&mutex);
+    enqueue(pclient);
+    pthread_mutex_unlock(&mutex);
+
+    /* previous versions
+
     // handle connection using threads
     pthread_t thread; // keep track of thread
     int *pclient = malloc(sizeof(int));
     *pclient = client_socket;
     pthread_create(&thread, NULL, handle_connection, (void*)pclient);
 
-    // testing no threads
+    // no threads
     // handle_connection(pclient);
+
+    previous versions */
   
   } // while
 
@@ -70,6 +93,18 @@ int check(int exp, const char *msg) {
     exit(1);
   }
   return exp;
+}
+
+void* thread_pool_handler(void* arg) {
+  while (true) {
+    pthread_mutex_lock(&mutex);
+    int* pclient = dequeue();
+    pthread_mutex_unlock(&mutex);
+    if (pclient != NULL) {
+      // handle connection
+      handle_connection(pclient);
+    }
+  }
 }
 
 void* handle_connection(void* p_client_socket) {

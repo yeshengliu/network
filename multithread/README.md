@@ -19,6 +19,17 @@ To test the performance, type
 % time ./sendManyRequests.bash
 ```
 
-## Reflection
-### Advantage
-The server with threads shows a huge improved performance when the request takes rather long time to accomplish (1s+), because requests can be processed simultaneously.
+## Process
+### Step 1 - Apply multi-threads to simple web server
+The server with threads shows a huge improved performance when the request takes rather long time to accomplish (1s+), since requests can be now processed simultaneously.
+
+However, creating thread for each connection is not an optimal solution because a large number of threads will grind system performance.
+
+### Step 2 - Create thread pools
+Using thread pools definitely avoid creating too many threads but still takes high CPU usage because all threads are waiting for new connections
+
+Commmon Issues:
+* Double free of object
+  * Reason: the shared data structure "queue" is not thread-safe
+  * Solution: use mutex thread lock to protect enqueue() and dequeue()
+
